@@ -11,6 +11,17 @@
 
 右栏保留这两次请求。你能回看 Agent 当时为什么判断失败，也能编辑带有两次尝试编号和字段变化的摘要，发回原会话。
 
+## 看结果，或自己发一条请求
+
+左图是 Agent 跑完后的右栏：两个请求都是 HTTP 200，但第二个请求的折扣不符合预期。点请求行可以切换下方的断言、请求、响应和尝试记录。点击 **修改后试一次** 从这条记录接手；要从空白开始，点击右上角的 **新建请求**。
+
+<p>
+  <a href="docs/ui/results-zh.png"><img src="docs/ui/results-zh.png" width="46%" alt="运行结果：过期优惠券返回 HTTP 200，预期折扣为 0，实际为 10"></a>
+  <a href="docs/ui/request-zh.png"><img src="docs/ui/request-zh.png" width="46%" alt="手动请求编辑器：POST 地址栏、发送按钮和请求头表格"></a>
+</p>
+
+[窄栏下的结果页](docs/ui/results-narrow-zh.png) · [跟随宿主深色主题的结果页](docs/ui/results-dark-en.png)
+
 ## 安装
 
 已验证的宿主是 Windows 上的 DeepSeek Harness Desktop `0.2.2-rc.1`。先把源码克隆到准备长期保留的位置：

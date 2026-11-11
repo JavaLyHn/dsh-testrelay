@@ -1,5 +1,13 @@
 # TestRelay
 
+## Version 0.2.0 — workbench redesign
+
+The redesigned workbench was exercised in Edge against an isolated local DSH Web profile and a loopback coupon service, using the DSH `0.2.2-rc.1` runtime on Windows. The [screenshots](docs/ui) show the actual DSH sidebar. At 549 px and 364 px the panel fit without horizontal scrolling in both Chinese/light and English/dark configurations.
+
+Two requests dispatched through the Agent tool returned HTTP 200. The panel selected the failed coupon and displayed the expected discount (0) alongside the observed value (10). After editing the coupon to `EXPIRED_B` and sending a retry, the original failure remained in the attempt history; the edited comparison appeared in the originating chat. The standalone editor was also used to send a JSON body and a numeric assertion to the fixture. This pass exercised the registered tool and renderer directly. The fresh-chat model routing check below was performed on 0.1.2.
+
+## Earlier end-to-end acceptance (0.1.2)
+
 Version 0.1.2 was verified on November 11, 2026, with DeepSeek Harness (DSH) Desktop `0.2.2-rc.1` on Windows and its bundled Node.js `24.21.0` runtime.
 
 ## Desktop chat
@@ -28,11 +36,11 @@ A clean Web profile also installed the release bundle, opened TestRelay from the
 
 ## Automated checks
 
-All 20 tests passed on the bundled Windows runtime, with none skipped.
+All 22 tests passed on the bundled Windows runtime for 0.2.0, with none skipped.
 
 | Suite | Tests | Coverage |
 |---|---:|---|
-| [Client](tests/client.test.mjs) | 4 | Tool cards, sidebar updates, session-bound drafts and delivery confirmation |
+| [Client](tests/client.test.mjs) | 6 | Tool cards, sidebar updates, failure selection and attempt history, explicit manual dispatch with typed inputs, session-bound drafts and delivery confirmation |
 | [Executor integration](tests/executor.integration.test.mjs) | 3 | Loopback HTTP, typed assertions, credentials, timeouts, cancellation and recovery |
 | [Replay and evidence](tests/replay-evidence.test.mjs) | 7 | Request templates, redaction, original results and delivery to the originating session |
 | [Store concurrency](tests/store.concurrency.test.mjs) | 6 | Concurrent writers, event pagination, interrupted hosts and legacy replay history |

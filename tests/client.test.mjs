@@ -18,7 +18,7 @@ async function loadClient(timers = { setTimeout, clearTimeout }) {
   const z = { string: () => schema, json: () => schema, record: () => schema, strictObject: () => schema };
   const react = { createElement: (type, props, ...children) => ({ type, props, children }) };
   const loader = { load: (entry) => { registration = entry; } };
-  vm.runInNewContext(clientSource, { window: { __ModuleLoader__: loader }, console, AbortController, ...timers });
+  vm.runInNewContext(clientSource, { window: { __ModuleLoader__: loader }, console, URL, AbortController, ...timers });
   const plugin = registration.factory((name) => {
     if (name === 'react') return react;
     if (name === 'zod') return { z };
@@ -99,6 +99,67 @@ function flatten(tree) {
   if (Array.isArray(tree)) return tree.flatMap(flatten);
   return [tree, ...(tree.children ?? []).flatMap(flatten)];
 }
+
+test('manual editor dispatches the edited JSON body and numeric expectation only after Send', async () => {
+  const { views, ctx, react } = await loadClient({ setTimeout: () => 1, clearTimeout: () => {} });
+  const sends = [];
+  ctx.remote.apiTestbench = { perform: async ({ sessionId, action, payload }) => {
+    if (action === 'runManual') {
+      sends.push({ sessionId, payload });
+      return { ok: true, value: { runId: 'manual-run' } };
+    }
+    if (action === 'listEnvironments') return { ok: true, value: { environments: [{ id: 'direct', name: 'Direct input' }] } };
+    return { ok: true, value: { cases: [], history: [], run: null, cursor: 0 } };
+  } };
+  const shell = views.get('sidebar.right.pane.tab')({ sessionId: 'builder-session' });
+  const pane = mountView(react, () => {
+    const panel = flatten(shell.type(shell.props));
+    const header = panel.find(node => node.type?.name === 'WorkbenchHeader');
+    const manual = panel.find(node => node.type?.name === 'ManualWorkbench');
+    if (!manual) return header.type(header.props);
+    const editor = manual.type(manual.props);
+    const body = flatten(editor).find(node => ['BodyEditor', 'AssertionsEditor'].includes(node.type?.name));
+    return [editor, body && body.type(body.props)];
+  });
+  try {
+    let nodes = flatten(await pane.flush());
+    const get = predicate => {
+      const found = nodes.find(predicate);
+      assert.ok(found, 'expected editor control');
+      return found.props;
+    };
+    const byLabel = label => get(node => node.props?.['aria-label'] === label);
+    const named = (type, name) => get(node => node.type === type && node.children.includes(name));
+    const change = async (control, value) => { control.onChange({ target: { value } }); nodes = flatten(await pane.flush()); };
+    const click = async (control) => { assert.ok(!control.disabled); await control.onClick(); nodes = flatten(await pane.flush()); };
+    await click(named('button', 'New request'));
+    await change(byLabel('Method'), 'POST');
+    await change(byLabel('URL or path'), 'http://fixture.test/quote');
+    await click(named('button', 'Body'));
+    await change(get(node => node.type === 'select' && node.children.some(child => child.props?.value === 'json')), 'json');
+    await change(byLabel('JSON body'), '{');
+    assert.equal(byLabel('Send').disabled, true);
+    await change(byLabel('JSON body'), '{ "coupon": "EXPIRED_A" }');
+    await click(named('button', 'Assertions'));
+    await click(byLabel('Add assertion'));
+    await change(byLabel('1 · Assertion type'), 'json_equals');
+    const field = name => flatten(nodes.find(node => node.type === 'label' && flatten(node).includes(name))).find(node => node.type === 'input').props;
+    await change(field('JSON path'), '$.discount');
+    await change(field('Expected JSON value'), '0');
+    assert.equal(sends.length, 0);
+    await click(byLabel('Send'));
+    assert.equal(sends.length, 1);
+    const { sessionId, payload } = sends[0];
+    assert.equal(sessionId, 'builder-session');
+    assert.equal(payload.request.method, 'POST');
+    assert.equal(payload.request.url, 'http://fixture.test/quote');
+    assert.equal(payload.request.body.kind, 'json');
+    assert.equal(payload.request.body.value.coupon, 'EXPIRED_A');
+    assert.equal(payload.checks[0].kind, 'json_equals');
+    assert.equal(payload.checks[0].path, '$.discount');
+    assert.equal(payload.checks[0].expected, 0);
+  } finally { pane.dispose(); }
+});
 
 test('idle right pane discovers new runs and preserves edited handoff only for its source session', async () => {
   const scheduled = new Set();
@@ -185,4 +246,74 @@ test('rc.1 in-place update falls back only for an explicitly unsupported changes
     assert.deepEqual(snapshots.map(item => item.afterSeq), shouldFallback ? [0, 4, 4] : [0]);
     pane.dispose();
   }
+});
+
+test('result browser opens the failed request and keeps old attempts accessible without showing the retry editor', async () => {
+  const scheduled = new Set();
+  const { ctx, views, react } = await loadClient({ setTimeout: fn => (scheduled.add(fn), fn), clearTimeout: id => scheduled.delete(id) });
+  function sample(id, status, actual) {
+    const request = { method: 'POST', url: '/quote', body: { kind: 'json', value: { coupon: id } } };
+    const checks = [{ kind: 'json_equals', path: '$.discount', expected: 0, actual, state: status, basis: 'user' }];
+    return { id, name: id, status, request, checks, attempts: [{ id: id + '-1', origin: 'agent', request, checks, status, response: { status: 200, bodyPreview: JSON.stringify({ discount: actual }) } }] };
+  }
+  const first = sample('valid', 'passed', 0);
+  const failed = sample('expired', 'failed', 10);
+  failed.attempts[0].checks.unshift({ kind: 'status_equals', expected: 200, actual: 200, state: 'passed' });
+  failed.attempts.push({ ...sample('other-coupon', 'failed', 12).attempts[0], parentAttemptId: 'expired-1', origin: 'user' });
+  failed.attempts.push({ ...sample('corrected', 'passed', 0).attempts[0], parentAttemptId: 'expired-1', origin: 'user' });
+  let run = { id: 'result', title: 'Coupons', status: 'finished', origin: 'agent', cases: [first, failed], handoffs: [] };
+  ctx.remote.apiTestbench = { perform: async ({ action }) => ({ ok: true, value: action === 'snapshot' ? { run, history: [run], cursor: 1 } : {} }) };
+  const shell = views.get('sidebar.right.pane.tab')({ sessionId: 's' });
+  const pane = mountView(react, shell.type, shell.props);
+  try {
+    let tree = await pane.flush();
+    const nodes = () => flatten(tree);
+    const row = id => nodes().find(n => n?.props?.['data-case-id'] === id);
+    const tab = name => nodes().find(n => n?.props?.role === 'tab' && n.props['data-tab'] === name);
+    assert.equal(row('expired').props['aria-selected'], true);
+    assert.equal(tab('checks').props['aria-selected'], true);
+    const evidence = nodes().find(n => n.type?.name === 'AttemptView');
+    const checksElement = evidence.type(evidence.props);
+    const checksTree = checksElement.type(checksElement.props);
+    assert.equal(flatten(checksTree).find(n => n?.props?.className === 'tr-check-row').props['data-status'], 'failed');
+    const passedDetails = flatten(checksTree).find(n => n.type === 'details');
+    assert.notEqual(passedDetails.props.open, true);
+    assert.ok(flatten(passedDetails).includes('200'));
+    assert.ok(!nodes().some(n => n.type === 'textarea' && n.props['aria-label'] === 'Request JSON'));
+    const edit = nodes().find(n => n.type === 'button' && n.children.includes('Edit and retry'));
+    edit.props.onClick();
+    tree = await pane.flush();
+    const editor = nodes().find(n => n.type === 'textarea' && n.props['aria-label'] === 'Request JSON');
+    assert.equal(JSON.parse(editor.props.value).body.value.coupon, 'expired');
+    assert.ok(nodes().filter(n => n.type === 'details').every(n => n.props.open !== true), 'history, delivery and metadata start collapsed');
+    tab('attempts').props.onClick();
+    tree = await pane.flush();
+    assert.ok(nodes().some(n => n?.props?.['data-attempt-id'] === 'expired-1'));
+    assert.ok(nodes().some(n => n?.props?.['data-attempt-id'] === 'corrected-1'));
+    nodes().find(n => n?.props?.['data-attempt-id'] === 'corrected-1').props.onClick();
+    tree = await pane.flush();
+    assert.equal(tab('checks').props['aria-selected'], true);
+    const selectedEvidence = nodes().find(n => n.type?.name === 'AttemptView');
+    assert.equal(selectedEvidence.props.attempt.id, 'corrected-1');
+    assert.ok(nodes().some(n => n.type === 'del' && n.children.includes('"expired"')));
+    assert.ok(nodes().some(n => n.type === 'ins' && n.children.includes('"corrected"')));
+    const checkView = selectedEvidence.type(selectedEvidence.props);
+    const checkRows = flatten(checkView.type(checkView.props));
+    assert.ok(checkRows.some(n => n?.props?.['data-status'] === 'passed'));
+    assert.ok(checkRows.includes('0'));
+    row('valid').props.onClick();
+    tree = await pane.flush();
+    assert.equal(row('valid').props['aria-selected'], true);
+    assert.equal(tab('checks').props['aria-selected'], true);
+    const live = sample('running', 'running', null);
+    run = { ...run, status: 'running', cases: [...run.cases, live] };
+    const [update] = scheduled; scheduled.delete(update); await update();
+    tree = await pane.flush();
+    assert.equal(row('valid').props['aria-selected'], true, 'later live events preserve an explicit case selection');
+    const fresh = mountView(react, shell.type, shell.props);
+    try {
+      const liveTree = await fresh.flush();
+      assert.equal(flatten(liveTree).find(node => node?.props?.['data-case-id'] === 'running').props['aria-selected'], true);
+    } finally { fresh.dispose(); }
+  } finally { pane.dispose(); }
 });

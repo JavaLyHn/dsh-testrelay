@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-api-testbench",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
   "description": "TestRelay for DeepSeek Harness: watch an agent test HTTP APIs, replay a request, and send the comparison back to chat.",
   "repository": {
