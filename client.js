@@ -35,7 +35,8 @@ window.__ModuleLoader__.load({
         outline:2px solid var(--tr-accent);outline-offset:2px
       }
       .atb-root :is(button,input,select,textarea):disabled {opacity:.52;cursor:not-allowed}
-      .tr-panel {min-height:100%;width:100%;background:var(--tr-bg);container:relay / inline-size}
+      /* The DSH tab clips its body; let the workbench scroll inside that viewport. */
+      .tr-panel {height:100%;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;background:var(--tr-bg);container:relay / inline-size}
       .tr-workbench {min-width:0;width:100%;max-width:1080px;margin:0 auto;padding:0 var(--tr-pad) 22px}
       .tr-brandbar {display:flex;align-items:center;gap:10px;padding:14px var(--tr-pad);background:var(--tr-surface);border-bottom:1px solid var(--tr-border)}
       .tr-workbench>.tr-brandbar {margin:0 calc(-1 * var(--tr-pad))}
@@ -77,11 +78,11 @@ window.__ModuleLoader__.load({
       .tr-state {display:inline-flex;align-items:center;justify-content:center;gap:4px;width:fit-content;white-space:nowrap;flex-shrink:0;color:var(--tr-tone,var(--tr-muted));font-size:11px;font-weight:650}
       .tr-detail {margin-top:13px;background:var(--tr-surface);border:1px solid var(--tr-border);border-radius:9px;min-width:0;overflow:clip}
       .tr-detail-head {padding:12px 14px 9px;min-width:0}
-      .tr-tabs {display:flex;align-items:stretch;gap:clamp(2px,1.5cqi,10px);border-bottom:1px solid var(--tr-border);padding:0 10px;overflow-x:auto;scrollbar-width:thin}
+      .tr-tabs {display:flex;align-items:stretch;gap:clamp(2px,1.5cqi,10px);border-bottom:1px solid var(--tr-border);padding:0 10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
       .tr-tab {position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;color:var(--tr-muted)!important;background:transparent;border:0;padding:9px 5px;font-weight:560!important;font-size:12px!important;white-space:nowrap}
       .tr-tab:hover {color:var(--tr-ink)!important}
       .tr-tab[aria-selected="true"] {color:var(--tr-accent)!important}
-      .tr-tab[aria-selected="true"]::after {content:"";position:absolute;inset:auto 2px -1px;height:3px;background:var(--tr-accent);border-radius:3px 3px 0 0}
+      .tr-tab[aria-selected="true"]::after {content:"";position:absolute;inset:auto 2px 0;height:3px;background:var(--tr-accent);border-radius:3px 3px 0 0}
       .tr-tab-body {padding:12px 14px;min-width:0}
       .tr-check-row {min-width:0}
       .tr-compare {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;overflow:hidden;border:1px solid var(--tr-border);border-radius:7px;background:var(--tr-border)}

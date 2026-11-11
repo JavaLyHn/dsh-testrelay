@@ -1,5 +1,11 @@
 # TestRelay
 
+## Version 0.2.1 — sidebar wheel scrolling
+
+On DSH Web `0.2.2-rc.1` in Edge, the results pane was 597 px high with 1230 px of content after expanding the handoff and recent runs. In 0.2.0 a mouse wheel could not bring the last run into view. With 0.2.1 the same input scrolled the pane through all 633 px and back to the header. The conversation stayed still. Wheeling over the evidence tabs scrolled the pane; wheeling over a long summary scrolled the text first, then the pane after the text reached its end.
+
+To repeat the [browser regression check](qa/sidebar-scroll.cjs), use an isolated Playwright `page` showing a completed run in TestRelay. Set the viewport height low enough to clip the expanded history (635 px in this run), then call `await require('./qa/sidebar-scroll.cjs').checkSidebarWheel(page)` from the repository root. The check opens both disclosures and uses native wheel input in both directions. It does not send requests or messages.
+
 ## Version 0.2.0 — workbench redesign
 
 The redesigned workbench was exercised in Edge against an isolated local DSH Web profile and a loopback coupon service, using the DSH `0.2.2-rc.1` runtime on Windows. The [screenshots](docs/ui) show the actual DSH sidebar. At 549 px and 364 px the panel fit without horizontal scrolling in both Chinese/light and English/dark configurations.
@@ -36,7 +42,7 @@ A clean Web profile also installed the release bundle, opened TestRelay from the
 
 ## Automated checks
 
-All 22 tests passed on the bundled Windows runtime for 0.2.0, with none skipped.
+All 22 tests passed on the bundled Windows runtime for 0.2.1, with none skipped.
 
 | Suite | Tests | Coverage |
 |---|---:|---|
