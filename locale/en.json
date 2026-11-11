@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "TestRelay API Testbench",
+    "description": "Create manual API requests, manage workspace environments and saved cases, inspect responses, retry selected attempts, and send redacted comparisons to the originating chat."
+  }
+}

@@ -1,0 +1,17 @@
+# Local configuration and runtime data
+.env
+.env.*
+!.env.example
+.dsh/
+node_modules/
+coverage/
+*.log
+
+# Distributions and local editor settings
+*.zip
+*.zip.sha256
+*.tgz
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

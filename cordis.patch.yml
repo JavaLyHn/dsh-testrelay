@@ -1,0 +1,14 @@
+- insert:
+    - id: dsh-api-testbench
+      name: '@local/dsh-api-testbench'
+      config:
+        dataFile: !!js dshHomePath('api-testbench/state.json')
+      inject:
+        - tools
+        - typert
+        - typertGateway
+        - sessions
+        - workspaceRegistry
+        - credentials
+        - sessionController
+        - systemPrompt
